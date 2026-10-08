@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import Product from "@/models/products";
+import Product from "@/models/product";
 import { getUser } from "@/lib/auth";
 
 type Ctx = { params: Promise<{ id: string }> };
