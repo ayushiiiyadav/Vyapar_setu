@@ -1,3 +1,4 @@
+import VoiceAssistant from "@/components/voiceassistant";
 import BottomNav from "@/components/BottomNav";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <body className="min-h-full flex flex-col">
   {children}
   <BottomNav />
+  <VoiceAssistant />
 </body>
     </html>
   );
