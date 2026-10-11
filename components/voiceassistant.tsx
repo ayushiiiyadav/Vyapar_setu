@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 type State = "idle" | "listening" | "thinking";
@@ -10,21 +10,67 @@ export default function VoiceAssistant() {
   const [state, setState] = useState<State>("idle");
   const [heard, setHeard] = useState("");
   const [reply, setReply] = useState("");
+  const [noVoice, setNoVoice] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioEl = useRef<HTMLAudioElement | null>(null);
+  const lastAudio = useRef("");
+  const voices = useRef<SpeechSynthesisVoice[]>([]);
+
+  useEffect(() => {
+    if (!("speechSynthesis" in window)) return;
+    const load = () => (voices.current = window.speechSynthesis.getVoices());
+    load();
+    window.speechSynthesis.addEventListener("voiceschanged", load);
+    return () => window.speechSynthesis.removeEventListener("voiceschanged", load);
+  }, []);
 
   if (path === "/" || path.startsWith("/login")) return null;
 
-  function speak(text: string) {
+  function stopAudio() {
+    audioEl.current?.pause();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  }
+
+  // Fallback only: the device's own voice
+  function browserSpeak(text: string) {
     if (!("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const list = voices.current.length ? voices.current : synth.getVoices();
+    const hi = list.find((v) => v.lang.toLowerCase().replace("_", "-").startsWith("hi"));
+    setNoVoice(!hi);
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "hi-IN";
-    const v = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith("hi"));
-    if (v) u.voice = v;
+    if (hi) u.voice = hi;
     u.rate = 0.9;
-    window.speechSynthesis.speak(u);
+    synth.speak(u);
+  }
+
+  // Main voice: server-generated audio that plays on any device
+  async function speak(text: string, replay = false) {
+    stopAudio();
+    setNoVoice(false);
+    if (!replay) lastAudio.current = "";
+    try {
+      if (!lastAudio.current) {
+        const token = localStorage.getItem("token");
+        const res = await fetch("/api/assistant/speak", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ text }),
+        });
+        if (!res.ok) throw new Error("tts");
+        const { audio } = await res.json();
+        lastAudio.current = `data:audio/mpeg;base64,${audio}`;
+      }
+      if (!audioEl.current) audioEl.current = new Audio();
+      audioEl.current.src = lastAudio.current;
+      await audioEl.current.play();
+    } catch {
+      browserSpeak(text);
+    }
   }
 
   function say(text: string) {
@@ -35,7 +81,8 @@ export default function VoiceAssistant() {
   async function start() {
     setReply("");
     setHeard("");
-    window.speechSynthesis?.cancel();
+    stopAudio();
+    if (!audioEl.current) audioEl.current = new Audio(); // created on tap so browsers allow playback later
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
@@ -92,7 +139,7 @@ export default function VoiceAssistant() {
       });
       const ad = await a.json();
       say(ad.reply || "माफ़ कीजिए, फिर से बोलिए।");
-      if (ad.navigate) setTimeout(() => router.push(ad.navigate), 1800);
+      if (ad.navigate) setTimeout(() => router.push(ad.navigate), 2500);
     } catch {
       say("इंटरनेट में दिक्कत है। फिर से कोशिश कीजिए।");
     }
@@ -111,11 +158,16 @@ export default function VoiceAssistant() {
           {reply && (
             <>
               <p className="mt-1 text-xl font-bold text-leaf-dark">{reply}</p>
+              {noVoice && (
+                <p className="mt-2 rounded-xl bg-amber-50 p-2 text-sm text-amber-800">
+                  आवाज़ अभी उपलब्ध नहीं है, कृपया ऊपर लिखा जवाब पढ़ें।
+                </p>
+              )}
               <div className="mt-3 flex gap-2">
-                <button onClick={() => speak(reply)} className="flex-1 rounded-2xl bg-emerald-50 p-3 font-semibold text-emerald-800">
+                <button onClick={() => speak(reply, true)} className="flex-1 rounded-2xl bg-emerald-50 p-3 font-semibold text-emerald-800">
                   🔊 फिर से सुनें
                 </button>
-                <button onClick={() => { setReply(""); setHeard(""); window.speechSynthesis?.cancel(); }} className="rounded-2xl bg-gray-100 px-5 font-semibold">
+                <button onClick={() => { setReply(""); setHeard(""); stopAudio(); }} className="rounded-2xl bg-gray-100 px-5 font-semibold">
                   ✕
                 </button>
               </div>
