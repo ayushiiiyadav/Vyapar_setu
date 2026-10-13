@@ -63,7 +63,7 @@ export default function VoiceAssistant() {
         });
         if (!res.ok) throw new Error("tts");
         const { audio } = await res.json();
-        lastAudio.current = `data:audio/mpeg;base64,${audio}`;
+        lastAudio.current = `data:audio/wav;base64,${audio}`;
       }
       if (!audioEl.current) audioEl.current = new Audio();
       audioEl.current.src = lastAudio.current;
