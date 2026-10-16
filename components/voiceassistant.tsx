@@ -1,8 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { LANGS, UI, isLang, type LangCode } from "@/lib/languages";
 
 type State = "idle" | "listening" | "thinking";
+
+const BCP: Record<LangCode, string> = { hi: "hi-IN", en: "en-IN", mr: "mr-IN", te: "te-IN" };
 
 export default function VoiceAssistant() {
   const path = usePathname();
@@ -11,12 +14,19 @@ export default function VoiceAssistant() {
   const [heard, setHeard] = useState("");
   const [reply, setReply] = useState("");
   const [noVoice, setNoVoice] = useState(false);
+  const [lang, setLang] = useState<LangCode>("hi");
+  const [picker, setPicker] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioEl = useRef<HTMLAudioElement | null>(null);
   const lastAudio = useRef("");
   const voices = useRef<SpeechSynthesisVoice[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("lang");
+    if (isLang(saved)) setLang(saved);
+  }, []);
 
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
@@ -28,28 +38,30 @@ export default function VoiceAssistant() {
 
   if (path === "/" || path.startsWith("/login")) return null;
 
+  const t = UI[lang];
+
   function stopAudio() {
     audioEl.current?.pause();
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }
 
   // Fallback only: the device's own voice
-  function browserSpeak(text: string) {
+  function browserSpeak(text: string, l: LangCode) {
     if (!("speechSynthesis" in window)) return;
     const synth = window.speechSynthesis;
     synth.cancel();
     const list = voices.current.length ? voices.current : synth.getVoices();
-    const hi = list.find((v) => v.lang.toLowerCase().replace("_", "-").startsWith("hi"));
-    setNoVoice(!hi);
+    const match = list.find((v) => v.lang.toLowerCase().replace("_", "-").startsWith(l));
+    setNoVoice(!match);
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "hi-IN";
-    if (hi) u.voice = hi;
+    u.lang = BCP[l];
+    if (match) u.voice = match;
     u.rate = 0.9;
     synth.speak(u);
   }
 
   // Main voice: server-generated audio that plays on any device
-  async function speak(text: string, replay = false) {
+  async function speak(text: string, replay = false, l: LangCode = lang) {
     stopAudio();
     setNoVoice(false);
     if (!replay) lastAudio.current = "";
@@ -59,7 +71,7 @@ export default function VoiceAssistant() {
         const res = await fetch("/api/assistant/speak", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text, lang: l }),
         });
         if (!res.ok) throw new Error("tts");
         const { audio } = await res.json();
@@ -69,27 +81,39 @@ export default function VoiceAssistant() {
       audioEl.current.src = lastAudio.current;
       await audioEl.current.play();
     } catch {
-      browserSpeak(text);
+      browserSpeak(text, l);
     }
   }
 
-  function say(text: string) {
+  function say(text: string, l: LangCode = lang) {
     setReply(text);
-    speak(text);
+    speak(text, false, l);
+  }
+
+  function chooseLang(l: LangCode) {
+    if (!audioEl.current) audioEl.current = new Audio(); // created on tap so playback is allowed
+    setLang(l);
+    localStorage.setItem("lang", l);
+    setPicker(false);
+    setHeard("");
+    say(UI[l].switched, l);
   }
 
   async function start() {
     setReply("");
     setHeard("");
+    setPicker(false);
     stopAudio();
-    if (!audioEl.current) audioEl.current = new Audio(); // created on tap so browsers allow playback later
+    if (!audioEl.current) audioEl.current = new Audio();
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      });
       const mr = new MediaRecorder(stream);
       chunks.current = [];
       mr.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
       mr.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
+        stream.getTracks().forEach((tr) => tr.stop());
         send(new Blob(chunks.current, { type: mr.mimeType || "audio/webm" }));
       };
       mr.start();
@@ -97,7 +121,7 @@ export default function VoiceAssistant() {
       setState("listening");
       timer.current = setTimeout(stop, 8000);
     } catch {
-      setReply("माइक की अनुमति दीजिए।");
+      setReply(t.mic);
     }
   }
 
@@ -116,18 +140,19 @@ export default function VoiceAssistant() {
     try {
       const fd = new FormData();
       fd.append("audio", blob, "voice.webm");
-      const t = await fetch("/api/assistant/transcribe", {
+      fd.append("lang", lang);
+      const tr = await fetch("/api/assistant/transcribe", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
-      if (t.status === 401) {
+      if (tr.status === 401) {
         setState("idle");
         return router.push("/login");
       }
-      const td = await t.json();
-      if (!t.ok || !td.text?.trim()) {
-        say("आवाज़ साफ़ नहीं आई। फिर से बोलिए।");
+      const td = await tr.json();
+      if (!tr.ok || !td.text?.trim()) {
+        say(t.unclear);
         return setState("idle");
       }
       setHeard(td.text);
@@ -135,13 +160,13 @@ export default function VoiceAssistant() {
       const a = await fetch("/api/assistant/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: td.text }),
+        body: JSON.stringify({ text: td.text, lang }),
       });
       const ad = await a.json();
-      say(ad.reply || "माफ़ कीजिए, फिर से बोलिए।");
+      say(ad.reply || t.retry);
       if (ad.navigate) setTimeout(() => router.push(ad.navigate), 2500);
     } catch {
-      say("इंटरनेट में दिक्कत है। फिर से कोशिश कीजिए।");
+      say(t.network);
     }
     setState("idle");
   }
@@ -152,20 +177,16 @@ export default function VoiceAssistant() {
     <>
       {(reply || heard || listening || state === "thinking") && (
         <div className="fixed inset-x-4 bottom-44 z-50 mx-auto max-w-md rounded-3xl bg-white p-4 shadow-2xl">
-          {listening && <p className="text-lg font-bold text-red-600">🎙️ सुन रहा हूँ... बोलकर फिर से बटन दबाइए</p>}
-          {state === "thinking" && <p className="text-lg font-bold text-leaf-dark">⏳ समझ रहा हूँ...</p>}
-          {heard && <p className="text-sm text-gray-500">आपने कहा: “{heard}”</p>}
+          {listening && <p className="text-lg font-bold text-red-600">{t.listening}</p>}
+          {state === "thinking" && <p className="text-lg font-bold text-leaf-dark">{t.thinking}</p>}
+          {heard && <p className="text-sm text-gray-500">{t.heard}: “{heard}”</p>}
           {reply && (
             <>
               <p className="mt-1 text-xl font-bold text-leaf-dark">{reply}</p>
-              {noVoice && (
-                <p className="mt-2 rounded-xl bg-amber-50 p-2 text-sm text-amber-800">
-                  आवाज़ अभी उपलब्ध नहीं है, कृपया ऊपर लिखा जवाब पढ़ें।
-                </p>
-              )}
+              {noVoice && <p className="mt-2 rounded-xl bg-amber-50 p-2 text-sm text-amber-800">{t.noVoice}</p>}
               <div className="mt-3 flex gap-2">
                 <button onClick={() => speak(reply, true)} className="flex-1 rounded-2xl bg-emerald-50 p-3 font-semibold text-emerald-800">
-                  🔊 फिर से सुनें
+                  {t.replay}
                 </button>
                 <button onClick={() => { setReply(""); setHeard(""); stopAudio(); }} className="rounded-2xl bg-gray-100 px-5 font-semibold">
                   ✕
@@ -176,10 +197,32 @@ export default function VoiceAssistant() {
         </div>
       )}
 
+      {picker && (
+        <div className="fixed bottom-44 right-4 z-60 w-44 space-y-2 rounded-3xl bg-white p-3 shadow-2xl">
+          {(Object.keys(LANGS) as LangCode[]).map((code) => (
+            <button
+              key={code}
+              onClick={() => chooseLang(code)}
+              className={`w-full rounded-2xl p-3 text-lg font-semibold ${code === lang ? "bg-leaf text-white" : "bg-gray-100"}`}
+            >
+              {LANGS[code].name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <button
+        onClick={() => setPicker(!picker)}
+        aria-label="Language"
+        className="fixed bottom-26 right-22 z-60 h-12 min-w-12 rounded-full bg-white px-3 text-sm font-bold text-leaf-dark shadow-xl"
+      >
+        🌐 {LANGS[lang].short}
+      </button>
+
       <button
         onClick={listening ? stop : start}
         disabled={state === "thinking"}
-        aria-label="बोलकर पूछें"
+        aria-label="Speak"
         className={`fixed bottom-24 right-4 z-50 flex h-16 w-16 items-center justify-center rounded-full text-3xl shadow-xl active:scale-95 ${
           listening ? "animate-pulse bg-red-500" : "bg-turmeric"
         } disabled:opacity-60`}

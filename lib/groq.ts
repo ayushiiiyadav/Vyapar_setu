@@ -1,11 +1,11 @@
 const BASE = "https://api.groq.com/openai/v1";
 const key = () => process.env.GROQ_API_KEY as string;
 
-export async function transcribe(file: File): Promise<string> {
+export async function transcribe(file: File, language = "hi"): Promise<string> {
   const fd = new FormData();
   fd.append("file", file, file.name || "voice.webm");
   fd.append("model", "whisper-large-v3");
-  fd.append("language", "hi");
+  fd.append("language", language);
   fd.append("temperature", "0");
 
   const res = await fetch(`${BASE}/audio/transcriptions`, {
