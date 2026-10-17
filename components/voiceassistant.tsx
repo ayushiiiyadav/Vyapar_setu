@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LANGS, UI, isLang, type LangCode } from "@/lib/languages";
+import { LANGS, UI, type LangCode } from "@/lib/languages";
+import { useLang } from "@/components/LanguageProvider";
 
 type State = "idle" | "listening" | "thinking";
 
@@ -14,7 +15,7 @@ export default function VoiceAssistant() {
   const [heard, setHeard] = useState("");
   const [reply, setReply] = useState("");
   const [noVoice, setNoVoice] = useState(false);
-  const [lang, setLang] = useState<LangCode>("hi");
+  const { lang, setLang } = useLang();
   const [picker, setPicker] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
@@ -22,11 +23,6 @@ export default function VoiceAssistant() {
   const audioEl = useRef<HTMLAudioElement | null>(null);
   const lastAudio = useRef("");
   const voices = useRef<SpeechSynthesisVoice[]>([]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("lang");
-    if (isLang(saved)) setLang(saved);
-  }, []);
 
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;

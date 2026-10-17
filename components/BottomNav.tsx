@@ -1,16 +1,20 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLang } from "@/components/LanguageProvider";
+import type { TKey } from "@/lib/i18n";
 
-const items = [
-  { href: "/dashboard", icon: "🏠", label: "घर" },
-  { href: "/billing", icon: "🧾", label: "बिल" },
-  { href: "/products", icon: "📦", label: "स्टॉक" },
-  { href: "/udhaar", icon: "📒", label: "उधार" },
+const items: { href: string; icon: string; label: TKey }[] = [
+  { href: "/dashboard", icon: "🏠", label: "navHome" },
+  { href: "/billing", icon: "🧾", label: "navBill" },
+  { href: "/products", icon: "📦", label: "navStock" },
+  { href: "/udhaar", icon: "📒", label: "navUdhaar" },
 ];
 
 export default function BottomNav() {
   const path = usePathname();
+  const { t } = useLang();
+
   if (path === "/" || path.startsWith("/login")) return null;
 
   return (
@@ -21,7 +25,7 @@ export default function BottomNav() {
           return (
             <Link key={i.href} href={i.href} className={`flex flex-1 flex-col items-center py-2 ${active ? "text-leaf-dark" : "text-gray-500"}`}>
               <span className={`rounded-full px-5 py-1 text-2xl ${active ? "bg-emerald-100" : ""}`}>{i.icon}</span>
-              <span className={`text-xs ${active ? "font-bold" : ""}`}>{i.label}</span>
+              <span className={`text-xs ${active ? "font-bold" : ""}`}>{t(i.label)}</span>
             </Link>
           );
         })}

@@ -1,3 +1,4 @@
+import { LanguageProvider } from "@/components/LanguageProvider";
 import VoiceAssistant from "@/components/voiceassistant";
 import BottomNav from "@/components/BottomNav";
 import type { Metadata } from "next";
@@ -26,11 +27,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-    <body className="min-h-full flex flex-col">
-  {children}
-  <BottomNav />
-  <VoiceAssistant />
-</body>
-    </html>
+  <body className="min-h-full flex flex-col">
+  <LanguageProvider>
+    {children}
+    <BottomNav />
+    <VoiceAssistant />
+    </LanguageProvider>
+  </body>
+  </html>
   );
 }
