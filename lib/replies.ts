@@ -8,6 +8,8 @@ export type Replies = {
   lowWarn: string;
   allFine: string;
   lowList: (count: number, names: string) => string;
+  expiring: (count: number, names: string) => string;
+  noExpiring: string;
   ownerOnly: string;
   noSalesToday: string;
   salesToday: (count: number, total: number) => string;
@@ -31,6 +33,8 @@ export const REPLIES: Record<LangCode, Replies> = {
     lowWarn: " यह कम है, जल्दी मंगवा लीजिए।",
     allFine: "सब सामान ठीक है, कुछ भी कम नहीं है।",
     lowList: (c, names) => `${c} सामान कम हैं: ${names}।`,
+    expiring: (c, names) => `${c} सामान जल्दी एक्सपायर होने वाले हैं: ${names}।`,
+    noExpiring: "कोई सामान जल्दी एक्सपायर नहीं हो रहा।",
     ownerOnly: "यह जानकारी सिर्फ़ मालिक देख सकते हैं।",
     noSalesToday: "आज अभी तक कोई बिक्री नहीं हुई।",
     salesToday: (c, t) => `आज अब तक ${c} बिल बने और कुल ${t} रुपये की बिक्री हुई।`,
@@ -57,7 +61,9 @@ export const REPLIES: Record<LangCode, Replies> = {
     stock: (n, q, u) => `${q} ${u} of ${n} left in stock.`,
     lowWarn: " That is low, please reorder soon.",
     allFine: "Everything is in stock, nothing is running low.",
-    lowList: (c, names) => `${c} items are running low: ${names}.`,
+    lowList: (c, names) => `${c} ${c === 1 ? "item is" : "items are"} running low: ${names}.`,
+    expiring: (c, names) => `${c} ${c === 1 ? "item is" : "items are"} expiring soon: ${names}.`,
+    noExpiring: "Nothing is expiring soon.",
     ownerOnly: "Only the owner can see this information.",
     noSalesToday: "There have been no sales today.",
     salesToday: (c, t) => `So far today there were ${c} bills, with total sales of ${t} rupees.`,
@@ -85,6 +91,8 @@ export const REPLIES: Record<LangCode, Replies> = {
     lowWarn: " हे कमी आहे, लवकर मागवा.",
     allFine: "सर्व माल व्यवस्थित आहे, काहीही कमी नाही.",
     lowList: (c, names) => `${c} वस्तू कमी आहेत: ${names}.`,
+    expiring: (c, names) => `${c} वस्तूंची मुदत लवकर संपत आहे: ${names}.`,
+    noExpiring: "कोणत्याही वस्तूची मुदत लवकर संपत नाही.",
     ownerOnly: "ही माहिती फक्त मालकच पाहू शकतात.",
     noSalesToday: "आज अजून एकही विक्री झालेली नाही.",
     salesToday: (c, t) => `आज आतापर्यंत ${c} बिले झाली आणि एकूण ${t} रुपयांची विक्री झाली.`,
@@ -112,6 +120,8 @@ export const REPLIES: Record<LangCode, Replies> = {
     lowWarn: " ఇది తక్కువగా ఉంది, త్వరగా తెప్పించండి.",
     allFine: "అన్ని వస్తువులు సరిపడా ఉన్నాయి, ఏదీ తక్కువగా లేదు.",
     lowList: (c, names) => `${c} వస్తువులు తక్కువగా ఉన్నాయి: ${names}.`,
+    expiring: (c, names) => `${c} వస్తువుల గడువు త్వరలో ముగుస్తుంది: ${names}.`,
+    noExpiring: "ఏ వస్తువు గడువూ త్వరలో ముగియదు.",
     ownerOnly: "ఈ సమాచారం యజమాని మాత్రమే చూడగలరు.",
     noSalesToday: "ఈ రోజు ఇప్పటివరకు అమ్మకాలు లేవు.",
     salesToday: (c, t) => `ఈ రోజు ఇప్పటివరకు ${c} బిల్లులు అయ్యాయి, మొత్తం ${t} రూపాయల అమ్మకాలు జరిగాయి.`,

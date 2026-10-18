@@ -4,8 +4,17 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLang } from "@/components/LanguageProvider";
 import { billingText } from "@/lib/text/billing";
+import { displayName } from "@/lib/catalog";
 
-type Product = { _id: string; name: string; unit: string; price: number; stock: number };
+type Product = {
+  _id: string;
+  name: string;
+  unit: string;
+  price: number;
+  stock: number;
+  icon?: string;
+  names?: Record<string, string>;
+};
 type CartItem = Product & { qty: number };
 type Customer = { _id: string; name: string; balance: number };
 
@@ -14,6 +23,7 @@ export default function BillingPage() {
   const { lang, t } = useLang();
   const s = billingText[lang];
   const unit = (u: string) => s.units[u] || u;
+
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -143,7 +153,7 @@ export default function BillingPage() {
             disabled={p.stock < 1}
             className="rounded-2xl border-2 border-green-500 bg-green-50 p-3 text-left disabled:border-gray-300 disabled:bg-gray-100 disabled:opacity-60"
           >
-            <p className="text-lg font-bold">{p.name}</p>
+            <p className="text-lg font-bold">{p.icon || "🛒"} {displayName(p, lang)}</p>
             <p>₹{p.price} / {unit(p.unit)}</p>
             <p className="text-sm text-gray-600">
               {p.stock < 1 ? `🔴 ${s.out}` : s.stock(p.stock, unit(p.unit))}
@@ -159,7 +169,7 @@ export default function BillingPage() {
         {cart.map((i) => (
           <div key={i._id} className="flex items-center justify-between">
             <div>
-              <p className="font-semibold">{i.name}</p>
+              <p className="font-semibold">{i.icon || "🛒"} {displayName(i, lang)}</p>
               <p className="text-sm text-gray-600">₹{i.price} × {i.qty} = ₹{i.price * i.qty}</p>
             </div>
             <div className="flex items-center gap-3">

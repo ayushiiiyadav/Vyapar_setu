@@ -5,6 +5,7 @@ import Link from "next/link";
 import Modal from "@/components/Modal";
 import { useLang } from "@/components/LanguageProvider";
 import { productsText } from "@/lib/text/product";
+import { catalogLabel, displayName, productName, searchCatalog, type CatalogItem } from "@/lib/catalog";
 
 type Product = {
   _id: string;
@@ -14,6 +15,9 @@ type Product = {
   stock: number;
   lowStockLimit: number;
   expiryDate?: string;
+  icon?: string;
+  brand?: string;
+  names?: Record<string, string>;
 };
 type Sheet = { kind: "add" } | { kind: "stock"; p: Product } | { kind: "delete"; p: Product } | null;
 
@@ -30,6 +34,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(empty);
+  const [picked, setPicked] = useState<CatalogItem | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [qty, setQty] = useState("");
   const [cost, setCost] = useState("");
@@ -79,10 +84,30 @@ export default function ProductsPage() {
     setSupplier("");
     setExpiry("");
     setError("");
+    setPicked(null);
+    if (sh?.kind === "add") setForm(empty);
+  }
+
+  function pick(item: CatalogItem) {
+    setPicked(item);
+    setForm({ ...form, name: productName(item), unit: item.unit });
   }
 
   async function addProduct() {
     setError("");
+    const extra = picked
+      ? {
+          brand: picked.brand ?? "",
+          icon: picked.icon,
+          keys: picked.aka ?? "",
+          names: {
+            en: productName(picked),
+            hi: catalogLabel(picked, "hi"),
+            mr: catalogLabel(picked, "mr"),
+            te: catalogLabel(picked, "te"),
+          },
+        }
+      : {};
     const res = await api("/api/products", {
       method: "POST",
       body: JSON.stringify({
@@ -93,14 +118,16 @@ export default function ProductsPage() {
         lowStockLimit: Number(form.lowStockLimit),
         ...(form.costPrice ? { costPrice: Number(form.costPrice) } : {}),
         ...(form.expiryDate ? { expiryDate: form.expiryDate } : {}),
+        ...extra,
       }),
     });
     if (!res) return;
     const data = await res.json();
     if (!res.ok) return setError(res.status === 400 ? s.badInput : s.generic);
     setForm(empty);
+    setPicked(null);
     setSheet(null);
-    setToast(`✅ ${s.added(data.name)}`);
+    setToast(`✅ ${s.added(displayName(data, lang))}`);
     load();
   }
 
@@ -117,19 +144,27 @@ export default function ProductsPage() {
     if (!res) return;
     if (!res.ok) return setError(res.status === 400 ? s.badQty : s.generic);
     setSheet(null);
-    setToast(`✅ ${s.stockAdded(p.name, n, unit(p.unit))}`);
+    setToast(`✅ ${s.stockAdded(displayName(p, lang), n, unit(p.unit))}`);
     load();
   }
 
   async function remove(p: Product) {
     await api(`/api/products/${p._id}`, { method: "DELETE" });
     setSheet(null);
-    setToast(`🗑 ${s.removed(p.name)}`);
+    setToast(`🗑 ${s.removed(displayName(p, lang))}`);
     load();
   }
 
+  const suggestions = sheet?.kind === "add" && !picked ? searchCatalog(form.name) : [];
+
   const title =
-    sheet?.kind === "add" ? s.addTitle : sheet?.kind === "stock" ? s.stockTitle(sheet.p.name) : sheet?.kind === "delete" ? s.deleteTitle : "";
+    sheet?.kind === "add"
+      ? s.addTitle
+      : sheet?.kind === "stock"
+      ? s.stockTitle(displayName(sheet.p, lang))
+      : sheet?.kind === "delete"
+      ? s.deleteTitle
+      : "";
 
   const label = "mb-1 block text-sm font-semibold text-gray-600";
 
@@ -179,9 +214,12 @@ export default function ProductsPage() {
 
         return (
           <div key={p._id} className={`rounded-3xl border-l-8 bg-white p-4 shadow-sm ${bar}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xl font-bold">{p.name}</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-3xl">
+                {p.icon || "🛒"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xl font-bold">{displayName(p, lang)}</p>
                 <p className="text-gray-500">₹{p.price} / {unit(p.unit)}</p>
               </div>
               <div className="text-right">
@@ -207,7 +245,46 @@ export default function ProductsPage() {
       <Modal open={!!sheet} onClose={() => setSheet(null)} title={title}>
         {sheet?.kind === "add" && (
           <div className="space-y-3">
-            <input className={input} placeholder={s.name} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <input
+              className={input}
+              placeholder={s.name}
+              value={form.name}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                setPicked(null);
+              }}
+            />
+
+            {!picked && <p className="text-sm text-gray-500">{s.pickHint}</p>}
+
+            {suggestions.length > 0 && (
+              <div className="max-h-56 overflow-y-auto rounded-2xl border-2 border-gray-100 bg-white">
+                {suggestions.map((item) => (
+                  <button
+                    key={`${item.brand ?? ""}-${item.en}`}
+                    onClick={() => pick(item)}
+                    className="flex w-full items-center gap-3 border-b border-gray-100 p-3 text-left last:border-0"
+                  >
+                    <span className="text-3xl">{item.icon}</span>
+                    <span>
+                      <span className="block font-semibold">{catalogLabel(item, lang)}</span>
+                      {lang !== "en" && <span className="block text-sm text-gray-500">{productName(item)}</span>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {picked && (
+              <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-3">
+                <span className="text-3xl">{picked.icon}</span>
+                <span className="flex-1 font-semibold text-emerald-900">{catalogLabel(picked, lang)}</span>
+                <button onClick={() => setPicked(null)} className="rounded-full bg-white px-3 py-1 text-sm font-semibold">
+                  ✕
+                </button>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <select className={input} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
                 {Object.keys(s.units).map((u) => (
@@ -258,7 +335,7 @@ export default function ProductsPage() {
 
         {sheet?.kind === "delete" && (
           <div className="space-y-4">
-            <p className="text-lg">{s.deleteAsk(sheet.p.name)}</p>
+            <p className="text-lg">{s.deleteAsk(displayName(sheet.p, lang))}</p>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setSheet(null)} className="rounded-2xl bg-gray-100 p-4 font-bold">{s.no}</button>
               <button onClick={() => remove(sheet.p)} className="rounded-2xl bg-red-600 p-4 font-bold text-white">{s.yesDelete}</button>

@@ -5,6 +5,7 @@ type ProductsText = {
   out: string; low: string; ok: string;
   arrived: string;
   addTitle: string; name: string; price: string; stockQty: string; lowLimit: string; save: string;
+  pickHint: string;
   costPrice: string; supplier: string; expiryLabel: string;
   expired: string; expiresToday: string; expiresIn: (n: number) => string;
   stockTitle: (name: string) => string;
@@ -27,6 +28,7 @@ export const productsText: Record<LangCode, ProductsText> = {
     out: "खत्म", low: "कम है", ok: "ठीक है",
     arrived: "माल आया",
     addTitle: "नया सामान जोड़ें", name: "नाम (जैसे: चावल)", price: "दाम ₹", stockQty: "कितना माल है", lowLimit: "कम होने की सीमा", save: "सेव करें",
+    pickHint: "सूची से चुनें, या अपना सामान खुद लिखें",
     costPrice: "खरीद का दाम ₹ (वैकल्पिक)", supplier: "सप्लायर का नाम (वैकल्पिक)", expiryLabel: "एक्सपायरी की तारीख (वैकल्पिक)",
     expired: "एक्सपायर हो गया", expiresToday: "आज एक्सपायर", expiresIn: (n) => `${n} दिन में एक्सपायर`,
     stockTitle: (n) => `${n}: माल आया`,
@@ -47,6 +49,7 @@ export const productsText: Record<LangCode, ProductsText> = {
     out: "Out of stock", low: "Running low", ok: "In stock",
     arrived: "Stock arrived",
     addTitle: "Add a new item", name: "Name (e.g. rice)", price: "Price ₹", stockQty: "How much stock", lowLimit: "Low stock limit", save: "Save",
+    pickHint: "Pick from the list, or type your own item",
     costPrice: "Purchase price ₹ (optional)", supplier: "Supplier name (optional)", expiryLabel: "Expiry date (optional)",
     expired: "Expired", expiresToday: "Expires today", expiresIn: (n) => `Expires in ${n} days`,
     stockTitle: (n) => `${n}: stock arrived`,
@@ -67,6 +70,7 @@ export const productsText: Record<LangCode, ProductsText> = {
     out: "संपले", low: "कमी आहे", ok: "ठीक आहे",
     arrived: "माल आला",
     addTitle: "नवीन माल जोडा", name: "नाव (उदा. तांदूळ)", price: "किंमत ₹", stockQty: "किती माल आहे", lowLimit: "कमी होण्याची मर्यादा", save: "सेव्ह करा",
+    pickHint: "यादीतून निवडा, किंवा स्वतःचा माल लिहा",
     costPrice: "खरेदी किंमत ₹ (ऐच्छिक)", supplier: "पुरवठादाराचे नाव (ऐच्छिक)", expiryLabel: "मुदत संपण्याची तारीख (ऐच्छिक)",
     expired: "मुदत संपली", expiresToday: "आज मुदत संपते", expiresIn: (n) => `${n} दिवसांत मुदत संपते`,
     stockTitle: (n) => `${n}: माल आला`,
@@ -87,6 +91,7 @@ export const productsText: Record<LangCode, ProductsText> = {
     out: "అయిపోయింది", low: "తక్కువగా ఉంది", ok: "సరిపడా ఉంది",
     arrived: "సరుకు వచ్చింది",
     addTitle: "కొత్త వస్తువు జోడించండి", name: "పేరు (ఉదా: బియ్యం)", price: "ధర ₹", stockQty: "ఎంత స్టాక్ ఉంది", lowLimit: "తక్కువ స్టాక్ పరిమితి", save: "సేవ్ చేయండి",
+    pickHint: "జాబితా నుండి ఎంచుకోండి, లేదా మీ వస్తువు పేరు రాయండి",
     costPrice: "కొనుగోలు ధర ₹ (ఐచ్ఛికం)", supplier: "సరఫరాదారు పేరు (ఐచ్ఛికం)", expiryLabel: "గడువు తేదీ (ఐచ్ఛికం)",
     expired: "గడువు ముగిసింది", expiresToday: "ఈ రోజే గడువు ముగుస్తుంది", expiresIn: (n) => `${n} రోజుల్లో గడువు ముగుస్తుంది`,
     stockTitle: (n) => `${n}: సరుకు వచ్చింది`,
