@@ -14,7 +14,6 @@ export default function BillingPage() {
   const { lang, t } = useLang();
   const s = billingText[lang];
   const unit = (u: string) => s.units[u] || u;
-
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
