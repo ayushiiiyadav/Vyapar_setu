@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useLang } from "@/components/LanguageProvider";
+import { billingText } from "@/lib/text/billing";
 
 type Product = { _id: string; name: string; unit: string; price: number; stock: number };
 type CartItem = Product & { qty: number };
@@ -9,6 +11,10 @@ type Customer = { _id: string; name: string; balance: number };
 
 export default function BillingPage() {
   const router = useRouter();
+  const { lang, t } = useLang();
+  const s = billingText[lang];
+  const unit = (u: string) => s.units[u] || u;
+
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -77,13 +83,13 @@ export default function BillingPage() {
     );
   }
 
-  const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
 
   async function confirmBill() {
     setMessage(null);
-    if (cart.length === 0) return setMessage({ type: "err", text: "बिल खाली है" });
+    if (cart.length === 0) return setMessage({ type: "err", text: s.emptyBill });
     if (payment === "credit" && !customerId && !newName.trim())
-      return setMessage({ type: "err", text: "उधार के लिए ग्राहक चुनें या नाम लिखें" });
+      return setMessage({ type: "err", text: s.needCustomer });
 
     setSaving(true);
     const res = await api("/api/sales", {
@@ -98,9 +104,10 @@ export default function BillingPage() {
     setSaving(false);
     if (!res) return;
     const data = await res.json();
-    if (!res.ok) return setMessage({ type: "err", text: data.error || "बिल नहीं बन पाया" });
+    if (!res.ok)
+      return setMessage({ type: "err", text: res.status === 400 ? s.stockLow : s.generic });
 
-    setMessage({ type: "ok", text: `✅ बिल बन गया: ₹${data.total}` });
+    setMessage({ type: "ok", text: `✅ ${s.done(data.total)}` });
     setCart([]);
     setCustomerId("");
     setNewName("");
@@ -113,11 +120,11 @@ export default function BillingPage() {
     "w-full rounded-xl border-2 border-gray-300 p-3 text-lg outline-none focus:border-green-600";
 
   return (
-    <main className="mx-auto max-w-2xl space-y-4 p-4 pb-10">
+    <main className="mx-auto max-w-2xl space-y-4 p-4 pb-28">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-green-700">🧾 बिल बनाएं</h1>
+        <h1 className="text-2xl font-bold text-green-700">🧾 {s.title}</h1>
         <Link href="/dashboard" className="rounded-xl bg-gray-100 px-4 py-2 font-semibold">
-          ← वापस
+          {t("back")}
         </Link>
       </div>
 
@@ -127,7 +134,7 @@ export default function BillingPage() {
         </p>
       )}
 
-      <input className={input} placeholder="🔍 सामान खोजें" value={search} onChange={(e) => setSearch(e.target.value)} />
+      <input className={input} placeholder={`🔍 ${s.search}`} value={search} onChange={(e) => setSearch(e.target.value)} />
 
       <div className="grid grid-cols-2 gap-3">
         {products.map((p) => (
@@ -138,16 +145,18 @@ export default function BillingPage() {
             className="rounded-2xl border-2 border-green-500 bg-green-50 p-3 text-left disabled:border-gray-300 disabled:bg-gray-100 disabled:opacity-60"
           >
             <p className="text-lg font-bold">{p.name}</p>
-            <p>₹{p.price} / {p.unit}</p>
-            <p className="text-sm text-gray-600">{p.stock < 1 ? "🔴 खत्म" : `स्टॉक: ${p.stock} ${p.unit}`}</p>
+            <p>₹{p.price} / {unit(p.unit)}</p>
+            <p className="text-sm text-gray-600">
+              {p.stock < 1 ? `🔴 ${s.out}` : s.stock(p.stock, unit(p.unit))}
+            </p>
           </button>
         ))}
-        {products.length === 0 && <p className="col-span-2 p-4 text-center text-gray-500">कोई सामान नहीं मिला</p>}
+        {products.length === 0 && <p className="col-span-2 p-4 text-center text-gray-500">{s.noItems}</p>}
       </div>
 
       <div className="space-y-3 rounded-2xl border-2 border-gray-200 p-4">
-        <h2 className="text-xl font-bold">🛒 बिल</h2>
-        {cart.length === 0 && <p className="text-gray-500">ऊपर से सामान चुनें</p>}
+        <h2 className="text-xl font-bold">🛒 {s.bill}</h2>
+        {cart.length === 0 && <p className="text-gray-500">{s.pickItems}</p>}
         {cart.map((i) => (
           <div key={i._id} className="flex items-center justify-between">
             <div>
@@ -162,36 +171,36 @@ export default function BillingPage() {
           </div>
         ))}
         <div className="flex items-center justify-between border-t-2 pt-3">
-          <span className="text-xl font-bold">कुल (Total)</span>
+          <span className="text-xl font-bold">{s.total}</span>
           <span className="text-3xl font-bold text-green-700">₹{total}</span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <button onClick={() => setPayment("cash")} className={`rounded-xl p-4 text-xl font-semibold ${payment === "cash" ? "bg-green-600 text-white" : "bg-gray-100"}`}>
-          💵 नकद (Cash)
+          💵 {s.cash}
         </button>
         <button onClick={() => setPayment("credit")} className={`rounded-xl p-4 text-xl font-semibold ${payment === "credit" ? "bg-orange-500 text-white" : "bg-gray-100"}`}>
-          📒 उधार (Udhaar)
+          📒 {s.credit}
         </button>
       </div>
 
       {payment === "credit" && (
         <div className="space-y-3 rounded-2xl bg-orange-50 p-4">
           <select className={input} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
-            <option value="">— पुराना ग्राहक चुनें —</option>
+            <option value="">{s.pickCustomer}</option>
             {customers.map((c) => (
-              <option key={c._id} value={c._id}>{c.name} (बाकी ₹{c.balance})</option>
+              <option key={c._id} value={c._id}>{c.name} ({s.due} ₹{c.balance})</option>
             ))}
           </select>
           {!customerId && (
-            <input className={input} placeholder="या नए ग्राहक का नाम लिखें" value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <input className={input} placeholder={s.newCustomer} value={newName} onChange={(e) => setNewName(e.target.value)} />
           )}
         </div>
       )}
 
       <button onClick={confirmBill} disabled={saving} className="w-full rounded-xl bg-green-700 p-5 text-2xl font-bold text-white disabled:opacity-60">
-        {saving ? "रुकिए..." : "✅ बिल पक्का करें"}
+        {saving ? s.wait : `✅ ${s.confirm}`}
       </button>
     </main>
   );
