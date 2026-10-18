@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useLang } from "@/components/LanguageProvider";
 import type { TKey } from "@/lib/i18n";
 
-type Product = { _id: string; name: string; stock: number; lowStockLimit: number };
+type Product = {
+  _id: string;
+  name: string;
+  stock: number;
+  lowStockLimit: number;
+  expiryDate?: string;
+};
 
 const TILES: { href: string; icon: string; label: TKey; sub: string; color: string }[] = [
   { href: "/billing", icon: "🧾", label: "tileBilling", sub: "Billing", color: "bg-green-600" },
@@ -13,6 +19,8 @@ const TILES: { href: string; icon: string; label: TKey; sub: string; color: stri
   { href: "/udhaar", icon: "📒", label: "tileUdhaar", sub: "Udhaar", color: "bg-orange-500" },
   { href: "/reports", icon: "📊", label: "tileReports", sub: "Reports", color: "bg-purple-600" },
 ];
+
+const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
 
 export default function Dashboard() {
   const router = useRouter();
@@ -45,6 +53,7 @@ export default function Dashboard() {
 
   const out = products.filter((p) => p.stock === 0).length;
   const low = products.filter((p) => p.stock > 0 && p.stock <= p.lowStockLimit).length;
+  const soon = products.filter((p) => p.expiryDate && daysLeft(p.expiryDate) <= 7).length;
 
   return (
     <main className="mx-auto max-w-2xl space-y-5 p-4 pb-28">
@@ -58,14 +67,18 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-yellow-50 p-4 text-center">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="rounded-2xl bg-yellow-50 p-3 text-center">
           <p className="text-3xl font-bold text-yellow-600">{low}</p>
-          <p className="font-semibold">🟡 {t("lowStock")}</p>
+          <p className="text-sm font-semibold">🟡 {t("lowStock")}</p>
         </div>
-        <div className="rounded-2xl bg-red-50 p-4 text-center">
+        <div className="rounded-2xl bg-red-50 p-3 text-center">
           <p className="text-3xl font-bold text-red-600">{out}</p>
-          <p className="font-semibold">🔴 {t("outOfStock")}</p>
+          <p className="text-sm font-semibold">🔴 {t("outOfStock")}</p>
+        </div>
+        <div className="rounded-2xl bg-orange-50 p-3 text-center">
+          <p className="text-3xl font-bold text-orange-600">{soon}</p>
+          <p className="text-sm font-semibold">⏳ {t("expiringSoon")}</p>
         </div>
       </div>
 

@@ -24,7 +24,7 @@ export default function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       <div className="backdrop absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="sheet relative w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
+      <div className="sheet relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl">
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-gray-300 sm:hidden" />
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-leaf-dark">{title}</h2>

@@ -13,11 +13,13 @@ type Product = {
   price: number;
   stock: number;
   lowStockLimit: number;
+  expiryDate?: string;
 };
 type Sheet = { kind: "add" } | { kind: "stock"; p: Product } | { kind: "delete"; p: Product } | null;
 
-const empty = { name: "", unit: "kg", price: "", stock: "", lowStockLimit: "5" };
+const empty = { name: "", unit: "kg", price: "", stock: "", lowStockLimit: "5", costPrice: "", expiryDate: "" };
 const input = "w-full rounded-2xl border-2 border-gray-200 bg-white p-4 text-lg outline-none focus:border-leaf";
+const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -30,6 +32,9 @@ export default function ProductsPage() {
   const [form, setForm] = useState(empty);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [qty, setQty] = useState("");
+  const [cost, setCost] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [expiry, setExpiry] = useState("");
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
@@ -70,6 +75,9 @@ export default function ProductsPage() {
   function open(sh: Sheet) {
     setSheet(sh);
     setQty("");
+    setCost("");
+    setSupplier("");
+    setExpiry("");
     setError("");
   }
 
@@ -83,6 +91,8 @@ export default function ProductsPage() {
         price: Number(form.price),
         stock: Number(form.stock),
         lowStockLimit: Number(form.lowStockLimit),
+        ...(form.costPrice ? { costPrice: Number(form.costPrice) } : {}),
+        ...(form.expiryDate ? { expiryDate: form.expiryDate } : {}),
       }),
     });
     if (!res) return;
@@ -97,12 +107,15 @@ export default function ProductsPage() {
   async function addStock(p: Product) {
     const n = Number(qty);
     if (!(n > 0)) return setError(s.badQty);
-    const res = await api(`/api/products/${p._id}`, {
-      method: "PUT",
-      body: JSON.stringify({ stock: p.stock + n }),
+    const res = await api("/api/purchases", {
+      method: "POST",
+      body: JSON.stringify({
+        supplier,
+        items: [{ productId: p._id, qty: n, costPrice: cost || 0, expiryDate: expiry || undefined }],
+      }),
     });
     if (!res) return;
-    if (!res.ok) return setError(s.generic);
+    if (!res.ok) return setError(res.status === 400 ? s.badQty : s.generic);
     setSheet(null);
     setToast(`✅ ${s.stockAdded(p.name, n, unit(p.unit))}`);
     load();
@@ -117,6 +130,8 @@ export default function ProductsPage() {
 
   const title =
     sheet?.kind === "add" ? s.addTitle : sheet?.kind === "stock" ? s.stockTitle(sheet.p.name) : sheet?.kind === "delete" ? s.deleteTitle : "";
+
+  const label = "mb-1 block text-sm font-semibold text-gray-600";
 
   return (
     <main className="mx-auto max-w-2xl space-y-4 p-4 pb-28">
@@ -144,7 +159,24 @@ export default function ProductsPage() {
         const out = p.stock === 0;
         const low = p.stock <= p.lowStockLimit;
         const bar = out ? "border-red-500" : low ? "border-turmeric" : "border-leaf";
-        const label = out ? `🔴 ${s.out}` : low ? `🟡 ${s.low}` : `🟢 ${s.ok}`;
+        const status = out ? `🔴 ${s.out}` : low ? `🟡 ${s.low}` : `🟢 ${s.ok}`;
+
+        let expiryText = "";
+        let expiryStyle = "";
+        if (p.expiryDate) {
+          const d = daysLeft(p.expiryDate);
+          if (d < 0) {
+            expiryText = s.expired;
+            expiryStyle = "bg-red-100 text-red-700";
+          } else if (d === 0) {
+            expiryText = s.expiresToday;
+            expiryStyle = "bg-red-100 text-red-700";
+          } else {
+            expiryText = s.expiresIn(d);
+            expiryStyle = d <= 7 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-600";
+          }
+        }
+
         return (
           <div key={p._id} className={`rounded-3xl border-l-8 bg-white p-4 shadow-sm ${bar}`}>
             <div className="flex items-center justify-between">
@@ -154,9 +186,12 @@ export default function ProductsPage() {
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold">{p.stock} <span className="text-base font-normal">{unit(p.unit)}</span></p>
-                <p className="text-sm font-semibold">{label}</p>
+                <p className="text-sm font-semibold">{status}</p>
               </div>
             </div>
+            {expiryText && (
+              <p className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-semibold ${expiryStyle}`}>⏳ {expiryText}</p>
+            )}
             <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
               <button onClick={() => open({ kind: "stock", p })} className="rounded-2xl bg-emerald-50 p-3 font-semibold text-emerald-800 active:scale-95">
                 ➕ {s.arrived}
@@ -185,6 +220,11 @@ export default function ProductsPage() {
               <input className={input} type="number" inputMode="numeric" placeholder={s.stockQty} value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
               <input className={input} type="number" inputMode="numeric" placeholder={s.lowLimit} value={form.lowStockLimit} onChange={(e) => setForm({ ...form, lowStockLimit: e.target.value })} />
             </div>
+            <input className={input} type="number" inputMode="numeric" placeholder={s.costPrice} value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value })} />
+            <div>
+              <label className={label}>{s.expiryLabel}</label>
+              <input className={input} type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} />
+            </div>
             {error && <p className="rounded-xl bg-red-50 p-3 font-semibold text-red-600">{error}</p>}
             <button onClick={addProduct} className="w-full rounded-2xl bg-leaf p-4 text-xl font-bold text-white active:scale-95">
               ✅ {s.save}
@@ -202,6 +242,12 @@ export default function ProductsPage() {
                   +{v}
                 </button>
               ))}
+            </div>
+            <input className={input} type="number" inputMode="numeric" placeholder={s.costPrice} value={cost} onChange={(e) => setCost(e.target.value)} />
+            <input className={input} placeholder={s.supplier} value={supplier} onChange={(e) => setSupplier(e.target.value)} />
+            <div>
+              <label className={label}>{s.expiryLabel}</label>
+              <input className={input} type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
             </div>
             {error && <p className="rounded-xl bg-red-50 p-3 font-semibold text-red-600">{error}</p>}
             <button onClick={() => addStock(sheet.p)} className="w-full rounded-2xl bg-leaf p-4 text-xl font-bold text-white active:scale-95">
