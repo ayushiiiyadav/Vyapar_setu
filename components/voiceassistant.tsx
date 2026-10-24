@@ -59,6 +59,10 @@ export default function VoiceAssistant() {
   // Main voice: server-generated audio that plays on any device
   async function speak(text: string, replay = false, l: LangCode = lang) {
     stopAudio();
+    async function speak(text: string, replay = false, l: LangCode = lang) {
+    stopAudio();
+    if (!replay && localStorage.getItem("voice") === "off") return;
+    // ...the rest stays as it is
     setNoVoice(false);
     if (!replay) lastAudio.current = "";
     try {
@@ -227,4 +231,5 @@ export default function VoiceAssistant() {
       </button>
     </>
   );
+}
 }
