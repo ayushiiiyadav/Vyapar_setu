@@ -140,7 +140,7 @@ export default function FeedbackPage() {
               </span>
               <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusCls[i.status]}`}>{statusText[i.status]}</span>
             </div>
-            <p className="whitespace-pre-wrap break-words">{i.message}</p>
+            <p className="whitespace-pre-wrap wrap-break-word">{i.message}</p>
           </div>
         ))}
       </div>

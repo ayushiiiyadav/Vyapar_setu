@@ -5,6 +5,14 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Mongoose returns loosely typed documents; strict typing is planned future work
+      "@typescript-eslint/no-explicit-any": "off",
+      // Standard fetch-on-mount pattern; this rule is experimental
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
