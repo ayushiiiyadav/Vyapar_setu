@@ -1,31 +1,45 @@
 import type { LangCode } from "@/lib/languages";
 
 type DashText = {
-  recentTitle: string; bestTitle: string; splitTitle: string;
+  recentBills: string; recentProducts: string; categoriesTitle: string;
+  searchPh: string; noMatch: string;
+  colProduct: string; colCategory: string; colStock: string; colStatus: string;
+  itemsCount: (n: number) => string; lowCount: (n: number) => string; allOk: string;
   cash: string; credit: string; last30: string; noBills: string;
   moreItems: (n: number) => string;
-  sold: (q: number) => string;
 };
 
 export const DASH: Record<LangCode, DashText> = {
   en: {
-    recentTitle: "Recent bills", bestTitle: "Best sellers", splitTitle: "Cash vs udhaar (30 days)",
+    recentBills: "Recent bills", recentProducts: "Recent products", categoriesTitle: "Categories",
+    searchPh: "Search items", noMatch: "No matching items",
+    colProduct: "Product", colCategory: "Category", colStock: "Stock", colStatus: "Status",
+    itemsCount: (n) => `${n} ${n === 1 ? "item" : "items"}`, lowCount: (n) => `${n} low`, allOk: "All fine",
     cash: "Cash", credit: "Udhaar", last30: "Last 30 days", noBills: "No bills yet",
-    moreItems: (n) => `+${n} more`, sold: (q) => `${q} sold`,
+    moreItems: (n) => `+${n} more`,
   },
   hi: {
-    recentTitle: "हाल के बिल", bestTitle: "सबसे ज़्यादा बिकने वाला", splitTitle: "नकद बनाम उधार (30 दिन)",
+    recentBills: "हाल के बिल", recentProducts: "हाल का सामान", categoriesTitle: "श्रेणियाँ",
+    searchPh: "सामान खोजें", noMatch: "कोई सामान नहीं मिला",
+    colProduct: "सामान", colCategory: "श्रेणी", colStock: "स्टॉक", colStatus: "स्थिति",
+    itemsCount: (n) => `${n} सामान`, lowCount: (n) => `${n} कम`, allOk: "सब ठीक",
     cash: "नकद", credit: "उधार", last30: "पिछले 30 दिन", noBills: "अभी कोई बिल नहीं",
-    moreItems: (n) => `+${n} और`, sold: (q) => `${q} बिके`,
+    moreItems: (n) => `+${n} और`,
   },
   mr: {
-    recentTitle: "अलीकडील बिले", bestTitle: "सर्वाधिक विकले जाणारे", splitTitle: "रोख विरुद्ध उधार (30 दिवस)",
+    recentBills: "अलीकडील बिले", recentProducts: "अलीकडील माल", categoriesTitle: "वर्गवारी",
+    searchPh: "माल शोधा", noMatch: "कोणताही माल सापडला नाही",
+    colProduct: "माल", colCategory: "प्रकार", colStock: "साठा", colStatus: "स्थिती",
+    itemsCount: (n) => `${n} वस्तू`, lowCount: (n) => `${n} कमी`, allOk: "सर्व ठीक",
     cash: "रोख", credit: "उधार", last30: "मागील 30 दिवस", noBills: "अजून बिले नाहीत",
-    moreItems: (n) => `+${n} आणखी`, sold: (q) => `${q} विकले`,
+    moreItems: (n) => `+${n} आणखी`,
   },
   te: {
-    recentTitle: "ఇటీవలి బిల్లులు", bestTitle: "ఎక్కువగా అమ్ముడైనవి", splitTitle: "నగదు vs బాకీ (30 రోజులు)",
+    recentBills: "ఇటీవలి బిల్లులు", recentProducts: "ఇటీవలి వస్తువులు", categoriesTitle: "వర్గాలు",
+    searchPh: "వస్తువులు వెతకండి", noMatch: "సరిపోలే వస్తువులు లేవు",
+    colProduct: "వస్తువు", colCategory: "వర్గం", colStock: "స్టాక్", colStatus: "స్థితి",
+    itemsCount: (n) => `${n} వస్తువులు`, lowCount: (n) => `${n} తక్కువ`, allOk: "అంతా బాగుంది",
     cash: "నగదు", credit: "బాకీ", last30: "గత 30 రోజులు", noBills: "ఇంకా బిల్లులు లేవు",
-    moreItems: (n) => `+${n} మరిన్ని`, sold: (q) => `${q} అమ్ముడయ్యాయి`,
+    moreItems: (n) => `+${n} మరిన్ని`,
   },
 };

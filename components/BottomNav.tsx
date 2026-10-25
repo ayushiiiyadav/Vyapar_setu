@@ -19,7 +19,7 @@ export default function BottomNav() {
   if (path === "/" || path.startsWith("/login")) return null;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-amber-100 bg-white/95 backdrop-blur">
+   <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-amber-100 bg-white/95 backdrop-blur lg:hidden">
       <div className="mx-auto flex max-w-2xl">
         {items.map((i) => {
           const active = path.startsWith(i.href);
