@@ -11,11 +11,11 @@ const BCP: Record<LangCode, string> = { hi: "hi-IN", en: "en-IN", mr: "mr-IN", t
 export default function VoiceAssistant() {
   const path = usePathname();
   const router = useRouter();
+  const { lang, setLang } = useLang();
   const [state, setState] = useState<State>("idle");
   const [heard, setHeard] = useState("");
   const [reply, setReply] = useState("");
   const [noVoice, setNoVoice] = useState(false);
-  const { lang, setLang } = useLang();
   const [picker, setPicker] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
@@ -59,10 +59,7 @@ export default function VoiceAssistant() {
   // Main voice: server-generated audio that plays on any device
   async function speak(text: string, replay = false, l: LangCode = lang) {
     stopAudio();
-    async function speak(text: string, replay = false, l: LangCode = lang) {
-    stopAudio();
     if (!replay && localStorage.getItem("voice") === "off") return;
-    // ...the rest stays as it is
     setNoVoice(false);
     if (!replay) lastAudio.current = "";
     try {
@@ -93,7 +90,6 @@ export default function VoiceAssistant() {
   function chooseLang(l: LangCode) {
     if (!audioEl.current) audioEl.current = new Audio(); // created on tap so playback is allowed
     setLang(l);
-    localStorage.setItem("lang", l);
     setPicker(false);
     setHeard("");
     say(UI[l].switched, l);
@@ -231,5 +227,4 @@ export default function VoiceAssistant() {
       </button>
     </>
   );
-}
 }
