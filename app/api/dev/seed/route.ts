@@ -71,8 +71,7 @@ export async function POST(req: NextRequest) {
   // 3. Customers (udhaar)
   const names = ["Sharma Ji", "Patil Kaka", "Reddy Garu", "Gupta Aunty"];
   const customers: any[] = await Customer.insertMany(
-    names.map((name, i) => ({ shopId, name, phone: `98765432${10 + i}`, balance: 0 }))
-  );
+  names.map((name) => ({ shopId, name, phone: "", balance: 0 }))    );
   const balances = new Map<string, number>();
   customers.forEach((c) => balances.set(String(c._id), 0));
 
