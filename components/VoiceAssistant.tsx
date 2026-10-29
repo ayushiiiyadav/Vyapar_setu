@@ -6,6 +6,18 @@ import { useLang } from "@/components/LanguageProvider";
 
 type State = "idle" | "listening" | "thinking";
 
+// An action the assistant wants to do, waiting for the owner to tap Yes or No
+type PendingAction = {
+  type: "add_stock";
+  productId: string;
+  qty: number;
+  yesLabel: string;
+  noLabel: string;
+  doneText: string;
+  cancelText: string;
+  failText: string;
+};
+
 const BCP: Record<LangCode, string> = { hi: "hi-IN", en: "en-IN", mr: "mr-IN", te: "te-IN" };
 
 export default function VoiceAssistant() {
@@ -15,6 +27,7 @@ export default function VoiceAssistant() {
   const [state, setState] = useState<State>("idle");
   const [heard, setHeard] = useState("");
   const [reply, setReply] = useState("");
+  const [pending, setPending] = useState<PendingAction | null>(null);
   const [noVoice, setNoVoice] = useState(false);
   const [picker, setPicker] = useState(false);
   const recorder = useRef<MediaRecorder | null>(null);
@@ -92,12 +105,14 @@ export default function VoiceAssistant() {
     setLang(l);
     setPicker(false);
     setHeard("");
+    setPending(null);
     say(UI[l].switched, l);
   }
 
   async function start() {
     setReply("");
     setHeard("");
+    setPending(null);
     setPicker(false);
     stopAudio();
     if (!audioEl.current) audioEl.current = new Audio();
@@ -159,6 +174,8 @@ export default function VoiceAssistant() {
         body: JSON.stringify({ text: td.text, lang }),
       });
       const ad = await a.json();
+      // If the assistant wants to change data, keep it waiting until the owner taps Yes
+      setPending(ad.action?.type === "add_stock" ? ad.action : null);
       say(ad.reply || t.retry);
       if (ad.navigate) setTimeout(() => router.push(ad.navigate), 2500);
     } catch {
@@ -167,24 +184,69 @@ export default function VoiceAssistant() {
     setState("idle");
   }
 
+  // Owner tapped Yes: do the real update through the same endpoint as "Stock arrived"
+  async function confirmAction() {
+    if (!pending) return;
+    const a = pending;
+    setPending(null);
+    const token = localStorage.getItem("token");
+    if (!token) return router.push("/login");
+    setState("thinking");
+    try {
+      const res = await fetch("/api/purchases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          supplier: "Voice assistant",
+          items: [{ productId: a.productId, qty: a.qty }],
+        }),
+      });
+      if (!res.ok) throw new Error("add");
+      say(a.doneText);
+      router.refresh();
+      window.dispatchEvent(new Event("stock-updated"));
+    } catch {
+      say(a.failText);
+    }
+    setState("idle");
+  }
+
+  // Owner tapped No: nothing is saved
+  function cancelAction() {
+    if (!pending) return;
+    const a = pending;
+    setPending(null);
+    say(a.cancelText);
+  }
+
   const listening = state === "listening";
 
   return (
     <>
       {(reply || heard || listening || state === "thinking") && (
-        <div className="fixed inset-x-4 bottom-44 z-50 mx-auto max-w-md rounded-3xl bg-white p-4 shadow-2xl">
+        <div className="fixed inset-x-4 bottom-56 z-50 mx-auto max-w-md rounded-3xl bg-white p-4 shadow-2xl lg:inset-x-auto lg:right-24 lg:bottom-6 lg:mx-0 lg:w-96">
           {listening && <p className="text-lg font-bold text-red-600">{t.listening}</p>}
           {state === "thinking" && <p className="text-lg font-bold text-leaf-dark">{t.thinking}</p>}
           {heard && <p className="text-sm text-gray-500">{t.heard}: “{heard}”</p>}
           {reply && (
             <>
               <p className="mt-1 text-xl font-bold text-leaf-dark">{reply}</p>
+              {pending && (
+                <div className="mt-3 flex gap-2">
+                  <button onClick={confirmAction} className="flex-1 rounded-2xl bg-leaf p-3 text-lg font-bold text-white">
+                    {pending.yesLabel}
+                  </button>
+                  <button onClick={cancelAction} className="flex-1 rounded-2xl bg-gray-100 p-3 text-lg font-bold">
+                    {pending.noLabel}
+                  </button>
+                </div>
+              )}
               {noVoice && <p className="mt-2 rounded-xl bg-amber-50 p-2 text-sm text-amber-800">{t.noVoice}</p>}
               <div className="mt-3 flex gap-2">
                 <button onClick={() => speak(reply, true)} className="flex-1 rounded-2xl bg-emerald-50 p-3 font-semibold text-emerald-800">
                   {t.replay}
                 </button>
-                <button onClick={() => { setReply(""); setHeard(""); stopAudio(); }} className="rounded-2xl bg-gray-100 px-5 font-semibold">
+                <button onClick={() => { setReply(""); setHeard(""); setPending(null); stopAudio(); }} className="rounded-2xl bg-gray-100 px-5 font-semibold">
                   ✕
                 </button>
               </div>
@@ -194,7 +256,7 @@ export default function VoiceAssistant() {
       )}
 
       {picker && (
-        <div className="fixed bottom-44 right-4 z-60 w-44 space-y-2 rounded-3xl bg-white p-3 shadow-2xl">
+        <div className="fixed bottom-56 right-4 z-60 w-44 space-y-2 rounded-3xl bg-white p-3 shadow-2xl lg:bottom-24 lg:right-24">
           {(Object.keys(LANGS) as LangCode[]).map((code) => (
             <button
               key={code}
@@ -210,7 +272,7 @@ export default function VoiceAssistant() {
       <button
         onClick={() => setPicker(!picker)}
         aria-label="Language"
-        className="fixed bottom-26 right-22 z-60 h-12 min-w-12 rounded-full bg-white px-3 text-sm font-bold text-leaf-dark shadow-xl"
+        className="fixed bottom-42 right-4 z-60 h-12 min-w-12 rounded-full bg-white px-3 text-sm font-bold text-leaf-dark shadow-xl lg:bottom-24"
       >
         🌐 {LANGS[lang].short}
       </button>
@@ -219,7 +281,7 @@ export default function VoiceAssistant() {
         onClick={listening ? stop : start}
         disabled={state === "thinking"}
         aria-label="Speak"
-        className={`fixed bottom-24 right-4 z-50 flex h-16 w-16 items-center justify-center rounded-full text-3xl shadow-xl active:scale-95 ${
+        className={`fixed bottom-24 right-4 z-50 flex h-16 w-16 items-center justify-center rounded-full text-3xl shadow-xl active:scale-95 lg:bottom-6 ${
           listening ? "animate-pulse bg-red-500" : "bg-turmeric"
         } disabled:opacity-60`}
       >

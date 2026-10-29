@@ -40,6 +40,33 @@ function matchProducts(text: string, products: any[]): any[] {
   return best === 0 ? [] : scored.filter((x) => x.score === best).map((x) => x.p);
 }
 
+// Converts what the shopkeeper said ("500 g") into the product's own unit ("kg")
+const norm = (u: any) => String(u || "").toLowerCase().trim();
+const isKg = (x: string) => x === "kg" || x === "kilo";
+const isG = (x: string) => x === "g" || x === "gm" || x === "gram";
+const isL = (x: string) => x === "l" || x === "litre" || x === "liter" || x === "ltr";
+const isMl = (x: string) => x === "ml";
+
+const isCount = (x: string) => ["pcs", "pc", "piece", "pieces", "packet", "packets"].includes(x);
+const sameFamily = (s: string, t: string) =>
+  (isKg(s) && isKg(t)) || (isG(s) && isG(t)) || (isL(s) && isL(t)) || (isMl(s) && isMl(t)) || (isCount(s) && isCount(t));
+
+// If the shopkeeper said a unit the item can't use (e.g. "packets" for an item counted in kg),
+// we flag a mismatch instead of silently changing the unit.
+function toProductUnit(qty: number, said: any, productUnit: any): { qty: number; mismatch: boolean } {
+  if (!Number.isFinite(qty)) return { qty: NaN, mismatch: false };
+  const s = norm(said);
+  const t = norm(productUnit);
+  let out = qty;
+  if (!s || s === t) return { qty: Math.round(out * 1000) / 1000, mismatch: false };
+  if (isG(s) && isKg(t)) out = qty / 1000;
+  else if (isKg(s) && isG(t)) out = qty * 1000;
+  else if (isMl(s) && isL(t)) out = qty / 1000;
+  else if (isL(s) && isMl(t)) out = qty * 1000;
+  else if (!sameFamily(s, t)) return { qty, mismatch: true };
+  return { qty: Math.round(out * 1000) / 1000, mismatch: false };
+}
+
 export async function POST(req: NextRequest) {
   const user = getUser(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -60,17 +87,19 @@ export async function POST(req: NextRequest) {
   ]);
 
   const system = `You are the voice assistant of "Vyapar Setu", a shop app for Indian kirana shopkeepers. The shopkeeper is speaking ${LANGS[lang].english} (they may mix in Hindi or English words). Understand the request and reply ONLY with JSON in this shape:
-{"intent": "check_stock" | "low_stock" | "expiring_soon" | "today_sales" | "udhaar_total" | "udhaar_customer" | "navigate" | "unknown", "product": string or null, "customer": string or null, "page": "billing" | "products" | "udhaar" | "reports" | "dashboard" | null}
+{"intent": "check_stock" | "low_stock" | "expiring_soon" | "today_sales" | "udhaar_total" | "udhaar_customer" | "add_stock" | "navigate" | "unknown", "product": string or null, "customer": string or null, "quantity": number or null, "unit": "kg" | "g" | "l" | "ml" | "piece" | "packet" | null, "page": "billing" | "products" | "udhaar" | "reports" | "dashboard" | null}
 
 Rules:
 - "product" must be EXACTLY one of these product names, or null if none fits: ${JSON.stringify(products.map((p: any) => p.name))}. Only return a product if the shopkeeper clearly said a word that means that item. If the word is unclear or garbled, return null instead of guessing.
 - "customer" must be EXACTLY one of these names, or null: ${JSON.stringify(customers.map((c: any) => c.name))}. The name may be said in another script, so match it by sound.
+- "quantity" is a plain positive number in digits (convert spoken numbers in any language, e.g. "do", "don", "rendu" -> 2; "aadha" -> 0.5). If no amount was clearly said, return null. "unit" is the unit the shopkeeper said (kilo -> "kg", gram -> "g", litre -> "l"), or null if none was said.
 - check_stock: asks how much of an item is left.
 - low_stock: asks which items are low or finishing.
 - expiring_soon: asks which items are expiring soon or have expired.
 - today_sales: asks about today's sales or earnings.
 - udhaar_total: asks total credit pending. udhaar_customer: asks how much one person owes.
-- navigate: wants to open a screen or learn how to do something. Making a bill -> billing. Adding or seeing stock -> products. Receiving credit payments or the udhaar ledger -> udhaar. Reports -> reports. Home -> dashboard.
+- add_stock: tells you to add, put in, or increase stock of an item (e.g. "add 2 kg rice", "2 kilo chawal add karo"), whether or not the amount is given.
+- navigate: wants to open a screen or learn how to do something. Making a bill -> billing. Opening the stock screen -> products. Receiving credit payments or the udhaar ledger -> udhaar. Reports -> reports. Home -> dashboard.
 - Anything else: unknown.`;
 
   let intent: any;
@@ -84,6 +113,7 @@ Rules:
   const customer: any = customers.find((c: any) => c.name === intent.customer);
   let reply = "";
   let navigate: string | undefined;
+  let action: Record<string, unknown> | undefined;
 
   const stockLine = (p: any) =>
     p.stock === 0
@@ -144,6 +174,50 @@ Rules:
         : R.customerOwes(customer.name, customer.balance);
       break;
     }
+    case "add_stock": {
+      // Nothing is saved here. We only work out WHAT to add and ask for confirmation.
+      // The real update happens when the owner taps Yes (frontend calls /api/purchases).
+      let found: any[] = [];
+      const viaAI = products.find((p: any) => p.name === intent.product);
+      if (viaAI) found = [viaAI];
+      else found = matchProducts(text, products);
+
+      if (found.length === 0) {
+        reply = R.productNotFound;
+        break;
+      }
+      if (found.length > 1) {
+        reply = R.askWhich(found.slice(0, 4).map((p) => displayName(p, lang)).join(", "));
+        break;
+      }
+
+      const p = found[0];
+      const name = displayName(p, lang);
+      const unitLabel = R.units[p.unit] || p.unit;
+      const conv = toProductUnit(Number(intent.quantity), intent.unit, p.unit);
+      if (conv.mismatch) {
+        reply = R.unitMismatch(name, unitLabel);
+        break;
+      }
+      const qty = conv.qty;
+      if (!(qty > 0) || qty > 100000) {
+        reply = R.askQty(name);
+        break;
+      }
+
+      reply = R.confirmAdd(name, qty, unitLabel);
+      action = {
+        type: "add_stock",
+        productId: String(p._id),
+        qty,
+        yesLabel: R.yes,
+        noLabel: R.no,
+        doneText: R.added(name, qty, unitLabel),
+        cancelText: R.cancelled,
+        failText: R.addFailed,
+      };
+      break;
+    }
     case "navigate": {
       const pg = pages[intent.page];
       if (!pg) {
@@ -158,5 +232,5 @@ Rules:
       reply = R.unknown;
   }
 
-  return NextResponse.json({ reply, navigate });
+  return NextResponse.json({ reply, navigate, action });
 }

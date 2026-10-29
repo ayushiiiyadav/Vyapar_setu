@@ -22,6 +22,16 @@ export type Replies = {
   unknown: string;
   brainFail: string;
   nav: Record<string, string>;
+  // Actions that change data: confirm first, then do it
+  confirmAdd: (name: string, qty: number, unit: string) => string;
+  askQty: (name: string) => string;
+  askWhich: (names: string) => string;
+  unitMismatch: (name: string, unit: string) => string;
+  added: (name: string, qty: number, unit: string) => string;
+  cancelled: string;
+  addFailed: string;
+  yes: string;
+  no: string;
 };
 
 export const REPLIES: Record<LangCode, Replies> = {
@@ -53,6 +63,15 @@ export const REPLIES: Record<LangCode, Replies> = {
       reports: "रिपोर्ट खोल रहा हूँ। यहाँ आज की बिक्री और सबसे ज़्यादा बिकने वाला सामान दिखता है।",
       dashboard: "होम पेज खोल रहा हूँ।",
     },
+    confirmAdd: (n, q, u) => `${n} ${q} ${u} स्टॉक में जोड़ दूँ?`,
+    askQty: (n) => `${n} कितना जोड़ना है?`,
+    askWhich: (names) => `कौन सा सामान? ${names}`,
+    unitMismatch: (n, u) => `${n} आपके स्टॉक में ${u} में गिना जाता है। कृपया ${u} में बताइए।`,
+    added: (n, q, u) => `${n} ${q} ${u} जोड़ दिया।`,
+    cancelled: "ठीक है, कुछ नहीं जोड़ा।",
+    addFailed: "जोड़ नहीं पाया, फिर से कोशिश करें।",
+    yes: "हाँ",
+    no: "नहीं",
   },
   en: {
     units: { kg: "kilos", litre: "litres", pcs: "pieces", packet: "packets" },
@@ -82,6 +101,15 @@ export const REPLIES: Record<LangCode, Replies> = {
       reports: "Opening the reports. Here you can see today's sales and your best selling items.",
       dashboard: "Opening the home page.",
     },
+    confirmAdd: (n, q, u) => `Add ${q} ${u} of ${n} to stock?`,
+    askQty: (n) => `How much ${n} should I add?`,
+    askWhich: (names) => `Which item? ${names}`,
+    unitMismatch: (n, u) => `${n} is counted in ${u} in your stock. Please say the amount in ${u}.`,
+    added: (n, q, u) => `Done. Added ${q} ${u} of ${n}.`,
+    cancelled: "Okay, nothing was added.",
+    addFailed: "Sorry, I could not add it. Please try again.",
+    yes: "Yes",
+    no: "No",
   },
   mr: {
     units: { kg: "किलो", litre: "लिटर", pcs: "नग", packet: "पॅकेट" },
@@ -111,6 +139,15 @@ export const REPLIES: Record<LangCode, Replies> = {
       reports: "अहवाल उघडत आहे. येथे आजची विक्री आणि सर्वात जास्त विकला जाणारा माल दिसतो.",
       dashboard: "मुख्य पान उघडत आहे.",
     },
+    confirmAdd: (n, q, u) => `${n} ${q} ${u} स्टॉकमध्ये जोडू का?`,
+    askQty: (n) => `${n} किती जोडायचे?`,
+    askWhich: (names) => `कोणता माल? ${names}`,
+    unitMismatch: (n, u) => `${n} तुमच्या स्टॉकमध्ये ${u} मध्ये मोजले जाते. कृपया ${u} मध्ये सांगा.`,
+    added: (n, q, u) => `${n} ${q} ${u} जोडले.`,
+    cancelled: "ठीक आहे, काही जोडले नाही.",
+    addFailed: "जोडता आले नाही, पुन्हा प्रयत्न करा.",
+    yes: "हो",
+    no: "नाही",
   },
   te: {
     units: { kg: "కిలోలు", litre: "లీటర్లు", pcs: "ముక్కలు", packet: "ప్యాకెట్లు" },
@@ -140,5 +177,14 @@ export const REPLIES: Record<LangCode, Replies> = {
       reports: "రిపోర్టులు తెరుస్తున్నాను. ఇక్కడ ఈ రోజు అమ్మకాలు, ఎక్కువగా అమ్ముడయ్యే వస్తువులు కనిపిస్తాయి.",
       dashboard: "హోమ్ పేజీ తెరుస్తున్నాను.",
     },
+    confirmAdd: (n, q, u) => `${n} ${q} ${u} స్టాక్‌లో జోడించమంటారా?`,
+    askQty: (n) => `${n} ఎంత జోడించాలి?`,
+    askWhich: (names) => `ఏ వస్తువు? ${names}`,
+    unitMismatch: (n, u) => `${n} మీ స్టాక్‌లో ${u} లెక్కన ఉంది. దయచేసి ${u} లెక్కన చెప్పండి.`,
+    added: (n, q, u) => `${n} ${q} ${u} జోడించాను.`,
+    cancelled: "సరే, ఏమీ జోడించలేదు.",
+    addFailed: "జోడించలేకపోయాను, మళ్లీ ప్రయత్నించండి.",
+    yes: "అవును",
+    no: "కాదు",
   },
 };
