@@ -32,6 +32,7 @@ export default function ProductsPage() {
   const unit = (u: string) => s.units[u] || u;
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(empty);
   const [picked, setPicked] = useState<CatalogItem | null>(null);
@@ -66,6 +67,7 @@ export default function ProductsPage() {
   const load = useCallback(async () => {
     const res = await api(`/api/products?search=${encodeURIComponent(search)}`);
     if (res?.ok) setProducts((await res.json()).products);
+    setLoaded(true);
   }, [api, search]);
 
   useEffect(() => {
@@ -183,7 +185,7 @@ export default function ProductsPage() {
         ➕ {s.addNew}
       </button>
 
-      {products.length === 0 && (
+      {loaded && products.length === 0 && (
         <div className="rounded-3xl bg-white p-10 text-center shadow-sm">
           <p className="text-5xl">📦</p>
           <p className="mt-2 font-semibold">{s.noItems}</p>

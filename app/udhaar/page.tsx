@@ -16,6 +16,7 @@ export default function UdhaarPage() {
   const s = udhaarText[lang];
 
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [active, setActive] = useState<Customer | null>(null);
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
@@ -45,6 +46,7 @@ export default function UdhaarPage() {
   const load = useCallback(async () => {
     const res = await api("/api/customers");
     if (res?.ok) setCustomers((await res.json()).customers);
+    setLoaded(true);
   }, [api]);
 
   useEffect(() => {
@@ -107,7 +109,7 @@ export default function UdhaarPage() {
         <p className="mt-2 text-sm opacity-80">{s.countLabel(pending.length)}</p>
       </div>
 
-      {pending.length === 0 && (
+      {loaded && pending.length === 0 && (
         <div className="rounded-3xl bg-white p-10 text-center shadow-sm">
           <p className="text-5xl">🎉</p>
           <p className="mt-2 text-lg font-semibold">{s.none}</p>

@@ -25,6 +25,7 @@ export default function BillingPage() {
   const unit = (u: string) => s.units[u] || u;
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
@@ -57,6 +58,7 @@ export default function BillingPage() {
   const loadProducts = useCallback(async () => {
     const res = await api(`/api/products?search=${encodeURIComponent(search)}`);
     if (res?.ok) setProducts((await res.json()).products);
+    setLoaded(true);
   }, [api, search]);
 
   const loadCustomers = useCallback(async () => {
@@ -160,7 +162,7 @@ export default function BillingPage() {
             </p>
           </button>
         ))}
-        {products.length === 0 && <p className="col-span-2 p-4 text-center text-gray-500">{s.noItems}</p>}
+        {loaded && products.length === 0 &&<p className="col-span-2 p-4 text-center text-gray-500">{s.noItems}</p>}
       </div>
 
       <div className="space-y-3 rounded-2xl border-2 border-gray-200 p-4">

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       const p = await Product.findOneAndUpdate(
         { _id: it.productId, shopId: user.shopId, stock: { $gte: qty } },
         { $inc: { stock: -qty } },
-        { new: true }
+        { returnDocument: "after" }
       );
       if (!p) {
         await rollback();

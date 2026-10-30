@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const customer = await Customer.findOneAndUpdate(
     { _id: customerId, shopId: user.shopId, balance: { $gte: amt } },
     { $inc: { balance: -amt } },
-    { new: true }
+    { returnDocument: "after" }
   );
   if (!customer)
     return NextResponse.json({ error: "Rakam baaki se zyada hai ya customer nahi mila" }, { status: 400 });

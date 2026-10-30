@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     if (l.exp) set.expiryDate = l.exp;
     const update: Record<string, unknown> = { $inc: { stock: l.qty } };
     if (Object.keys(set).length) update.$set = set;
-    const p = await Product.findOneAndUpdate({ _id: l.productId, shopId: user.shopId }, update, { new: true });
+    const p = await Product.findOneAndUpdate({ _id: l.productId, shopId: user.shopId }, update, { returnDocument: "after" });
     saved.push({ productId: l.productId, name: p?.name, qty: l.qty, costPrice: l.cost, expiryDate: l.exp });
     total += l.qty * l.cost;
   }

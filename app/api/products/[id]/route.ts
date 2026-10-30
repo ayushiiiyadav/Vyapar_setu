@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const product = await Product.findOneAndUpdate(
     { _id: id, shopId: user.shopId },
     body,
-    { new: true, runValidators: true }
+    { returnDocument: "after", runValidators: true }
   );
   if (!product) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(product);
