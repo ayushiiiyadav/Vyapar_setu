@@ -167,4 +167,4 @@ Testing so far has been manual: test cases for billing, stock, udhaar and the vo
 
 ## Notes
 
-Brand names in the catalog are common examples for demonstration, with no affiliation to the brands. Built by Ayushi ([@ayushiiiyadav](https://github.com/ayushiiiyadav)) as a final-year B.Tech Computer Science project at Shri Ram Swaroop Memorial University.
+Brand names in the catalog are common examples for demonstration, with no affiliation to the brands. Built by Ayushi ([@ayushiiiyadav](https://github.com/ayushiiiyadav)) as a final-year B.Tech Computer Science project .
