@@ -47,7 +47,13 @@ export async function GET(req: NextRequest) {
         line: { $multiply: ["$items.price", "$items.qty"] },
       },
     },
-    { $addFields: { hasCost: { $gt: ["$cost", 0] } } },
+    {
+      $addFields: {
+        hasCost: { $gt: ["$cost", 0] },
+        // true only if the product still exists but has no cost price (something the owner can fix)
+        needsCost: { $and: [{ $gt: [{ $size: "$prod" }, 0] }, { $lte: ["$cost", 0] }] },
+      },
+    },
     {
       $addFields: {
         lineProfit: {
@@ -143,6 +149,7 @@ export async function GET(req: NextRequest) {
           profit: { $sum: "$lineProfit" },
           qty: { $sum: "$items.qty" },
           hasCost: { $max: "$hasCost" },
+          needsCost: { $max: "$needsCost" },
         },
       },
     ]),
@@ -153,8 +160,12 @@ export async function GET(req: NextRequest) {
     .sort((a: any, b: any) => b.profit - a.profit)
     .slice(0, 5)
     .map((x: any) => ({ _id: x._id, qty: x.qty, profit: Math.round(x.profit) }));
-  // Sold items whose cost price is missing: they are left out of profit
-  const missingCost = byItem.filter((x: any) => !x.hasCost).map((x: any) => x._id).slice(0, 5);
+  // Sold items that still exist but have no cost price: they are left out of profit.
+  // Items that were deleted since the sale are ignored, because the owner can't fix them.
+  const missingCost = byItem
+    .filter((x: any) => !x.hasCost && x.needsCost)
+    .map((x: any) => x._id)
+    .slice(0, 5);
 
   // Fill in all 7 days, including days with no sales
   const byDay = new Map(dailyRaw.map((d: any) => [d._id, d.total]));

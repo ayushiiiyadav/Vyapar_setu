@@ -7,11 +7,20 @@ import { useLang } from "@/components/LanguageProvider";
 import { productsText } from "@/lib/text/product";
 import { catalogLabel, displayName, productName, searchCatalog, type CatalogItem } from "@/lib/catalog";
 
+// Texts for the edit screen (all four languages)
+const editText = {
+  en: { title: "Edit item", updated: (n: string) => `${n} updated` },
+  hi: { title: "सामान बदलें", updated: (n: string) => `${n} अपडेट हो गया` },
+  mr: { title: "माल बदला", updated: (n: string) => `${n} अपडेट झाले` },
+  te: { title: "వస్తువు మార్చండి", updated: (n: string) => `${n} అప్‌డేట్ అయింది` },
+};
+
 type Product = {
   _id: string;
   name: string;
   unit: string;
   price: number;
+  costPrice?: number;
   stock: number;
   lowStockLimit: number;
   expiryDate?: string;
@@ -19,9 +28,15 @@ type Product = {
   brand?: string;
   names?: Record<string, string>;
 };
-type Sheet = { kind: "add" } | { kind: "stock"; p: Product } | { kind: "delete"; p: Product } | null;
+type Sheet =
+  | { kind: "add" }
+  | { kind: "stock"; p: Product }
+  | { kind: "edit"; p: Product }
+  | { kind: "delete"; p: Product }
+  | null;
 
 const empty = { name: "", unit: "kg", price: "", stock: "", lowStockLimit: "5", costPrice: "", expiryDate: "" };
+const emptyEdit = { unit: "kg", price: "", costPrice: "", lowStockLimit: "5", expiryDate: "" };
 const input = "w-full rounded-2xl border-2 border-gray-200 bg-white p-4 text-lg outline-none focus:border-leaf";
 const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000);
 
@@ -29,12 +44,14 @@ export default function ProductsPage() {
   const router = useRouter();
   const { lang, t } = useLang();
   const s = productsText[lang];
+  const et = editText[lang as keyof typeof editText] || editText.en;
   const unit = (u: string) => s.units[u] || u;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState(empty);
+  const [editForm, setEditForm] = useState(emptyEdit);
   const [picked, setPicked] = useState<CatalogItem | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [qty, setQty] = useState("");
@@ -88,6 +105,16 @@ export default function ProductsPage() {
     setError("");
     setPicked(null);
     if (sh?.kind === "add") setForm(empty);
+    if (sh?.kind === "edit") {
+      const p = sh.p;
+      setEditForm({
+        unit: p.unit,
+        price: String(p.price),
+        costPrice: p.costPrice ? String(p.costPrice) : "",
+        lowStockLimit: String(p.lowStockLimit),
+        expiryDate: p.expiryDate ? p.expiryDate.slice(0, 10) : "",
+      });
+    }
   }
 
   function pick(item: CatalogItem) {
@@ -133,6 +160,39 @@ export default function ProductsPage() {
     load();
   }
 
+  // Saves changes to an existing item. Stock quantity is NOT changed here:
+  // quantity only changes through "Stock arrived" and billing, so records stay correct.
+  async function saveEdit(p: Product) {
+    setError("");
+    const price = Number(editForm.price);
+    const costPrice = editForm.costPrice === "" ? 0 : Number(editForm.costPrice);
+    const lowStockLimit = Number(editForm.lowStockLimit);
+    if (
+      editForm.price === "" ||
+      editForm.lowStockLimit === "" ||
+      !(price >= 0) ||
+      !(costPrice >= 0) ||
+      !(lowStockLimit >= 0)
+    )
+      return setError(s.badInput);
+
+    const res = await api(`/api/products/${p._id}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        unit: editForm.unit,
+        price,
+        costPrice,
+        lowStockLimit,
+        expiryDate: editForm.expiryDate || null,
+      }),
+    });
+    if (!res) return;
+    if (!res.ok) return setError(res.status === 400 ? s.badInput : s.generic);
+    setSheet(null);
+    setToast(`✅ ${et.updated(displayName(p, lang))}`);
+    load();
+  }
+
   async function addStock(p: Product) {
     const n = Number(qty);
     if (!(n > 0)) return setError(s.badQty);
@@ -164,6 +224,8 @@ export default function ProductsPage() {
       ? s.addTitle
       : sheet?.kind === "stock"
       ? s.stockTitle(displayName(sheet.p, lang))
+      : sheet?.kind === "edit"
+      ? et.title
       : sheet?.kind === "delete"
       ? s.deleteTitle
       : "";
@@ -232,9 +294,12 @@ export default function ProductsPage() {
             {expiryText && (
               <p className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-semibold ${expiryStyle}`}>⏳ {expiryText}</p>
             )}
-            <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+            <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
               <button onClick={() => open({ kind: "stock", p })} className="rounded-2xl bg-emerald-50 p-3 font-semibold text-emerald-800 active:scale-95">
                 ➕ {s.arrived}
+              </button>
+              <button onClick={() => open({ kind: "edit", p })} aria-label={et.title} className="rounded-2xl bg-amber-50 px-4 font-semibold text-amber-800 active:scale-95">
+                ✏️
               </button>
               <button onClick={() => open({ kind: "delete", p })} className="rounded-2xl bg-red-50 px-4 font-semibold text-red-600 active:scale-95">
                 🗑
@@ -306,6 +371,44 @@ export default function ProductsPage() {
             </div>
             {error && <p className="rounded-xl bg-red-50 p-3 font-semibold text-red-600">{error}</p>}
             <button onClick={addProduct} className="w-full rounded-2xl bg-leaf p-4 text-xl font-bold text-white active:scale-95">
+              ✅ {s.save}
+            </button>
+          </div>
+        )}
+
+        {sheet?.kind === "edit" && (
+          <div className="space-y-3">
+            <p className="text-lg font-bold">{displayName(sheet.p, lang)}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={label}>&nbsp;</label>
+                <select className={input} value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}>
+                  {Object.keys(s.units).map((u) => (
+                    <option key={u} value={u}>{s.units[u]}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={label}>{s.price}</label>
+                <input className={input} type="number" inputMode="decimal" value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={label}>{s.costPrice}</label>
+                <input className={input} type="number" inputMode="decimal" value={editForm.costPrice} onChange={(e) => setEditForm({ ...editForm, costPrice: e.target.value })} />
+              </div>
+              <div>
+                <label className={label}>{s.lowLimit}</label>
+                <input className={input} type="number" inputMode="numeric" value={editForm.lowStockLimit} onChange={(e) => setEditForm({ ...editForm, lowStockLimit: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label className={label}>{s.expiryLabel}</label>
+              <input className={input} type="date" value={editForm.expiryDate} onChange={(e) => setEditForm({ ...editForm, expiryDate: e.target.value })} />
+            </div>
+            {error && <p className="rounded-xl bg-red-50 p-3 font-semibold text-red-600">{error}</p>}
+            <button onClick={() => saveEdit(sheet.p)} className="w-full rounded-2xl bg-leaf p-4 text-xl font-bold text-white active:scale-95">
               ✅ {s.save}
             </button>
           </div>
