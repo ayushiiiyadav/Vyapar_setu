@@ -56,10 +56,12 @@ export default function BillingPage() {
   );
 
   const loadProducts = useCallback(async () => {
-    const res = await api(`/api/products?search=${encodeURIComponent(search)}`);
-    if (res?.ok) setProducts((await res.json()).products);
+  const res = await api(`/api/products?search=${encodeURIComponent(search)}`);
+  if (res?.ok) {
+    setProducts((await res.json()).products);
     setLoaded(true);
-  }, [api, search]);
+  }
+}, [api, search]);
 
   const loadCustomers = useCallback(async () => {
     const res = await api("/api/customers");
@@ -98,6 +100,7 @@ export default function BillingPage() {
 
   async function confirmBill() {
     setMessage(null);
+    {!loaded && <p className="col-span-2 p-6 text-center text-gray-400">⏳</p>}
     if (cart.length === 0) return setMessage({ type: "err", text: s.emptyBill });
     if (payment === "credit" && !customerId && !newName.trim())
       return setMessage({ type: "err", text: s.needCustomer });

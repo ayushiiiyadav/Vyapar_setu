@@ -81,11 +81,13 @@ export default function ProductsPage() {
     [router]
   );
 
-  const load = useCallback(async () => {
-    const res = await api(`/api/products?search=${encodeURIComponent(search)}`);
-    if (res?.ok) setProducts((await res.json()).products);
+ const load = useCallback(async () => {
+  const res = await api(`/api/products?search=${encodeURIComponent(search)}`);
+  if (res?.ok) {
+    setProducts((await res.json()).products);
     setLoaded(true);
-  }, [api, search]);
+  }
+}, [api, search]);
 
   useEffect(() => {
     load();
@@ -247,6 +249,7 @@ export default function ProductsPage() {
         ➕ {s.addNew}
       </button>
 
+      {!loaded && <p className="p-6 text-center text-gray-400">⏳</p>}
       {loaded && products.length === 0 && (
         <div className="rounded-3xl bg-white p-10 text-center shadow-sm">
           <p className="text-5xl">📦</p>

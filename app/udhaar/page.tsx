@@ -44,10 +44,12 @@ export default function UdhaarPage() {
   );
 
   const load = useCallback(async () => {
-    const res = await api("/api/customers");
-    if (res?.ok) setCustomers((await res.json()).customers);
+  const res = await api("/api/customers");
+  if (res?.ok) {
+    setCustomers((await res.json()).customers);
     setLoaded(true);
-  }, [api]);
+  }
+}, [api]);
 
   useEffect(() => {
     load();
@@ -109,6 +111,7 @@ export default function UdhaarPage() {
         <p className="mt-2 text-sm opacity-80">{s.countLabel(pending.length)}</p>
       </div>
 
+    {!loaded && <p className="p-6 text-center text-gray-400">⏳</p>} 
       {loaded && pending.length === 0 && (
         <div className="rounded-3xl bg-white p-10 text-center shadow-sm">
           <p className="text-5xl">🎉</p>
