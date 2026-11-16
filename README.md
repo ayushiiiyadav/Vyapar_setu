@@ -2,7 +2,7 @@
 
 A voice-enabled inventory, billing and udhaar (credit) app for small Indian kirana stores. The owner can ask questions by voice in **Hindi, English, Marathi or Telugu** and get a spoken answer from the shop's real data.
 
-> Live link: _(add here once deployed)_
+> Live link: https://vyapar-setu-two.vercel.app/
 
 ## Why this project
 
